@@ -4,4 +4,9 @@ matplotlib == 3.10.1
 scikit-learn == 1.6.1
 pillow == 11.2.1
 mlflow == 2.21.3
+scikit-image == 0.25.2
+lime == 0.2.0.1
+streamlit == 1.44.1
+shap == 0.47.2
+opencv-python == 4.11.0.86
 ipykernel
