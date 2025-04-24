@@ -1,37 +1,54 @@
-# NEW LIME EXPLAINER (explain.py)
+# explain.py
 
 import numpy as np
+import torch
 from lime import lime_image
+from PIL import Image
+from torchvision import transforms
 from skimage.segmentation import mark_boundaries
-from tensorflow.keras.applications.efficientnet import preprocess_input
+import streamlit as st
 
 
-def lime_explanation(model, img_pil):
-    """
-    Run LIME explanation on a PIL image with EfficientNet preprocessing.
-    Returns image with boundaries marked.
-    """
-    # Resize and preprocess the image
-    img_resized = img_pil.resize((224, 224))
-    img_array = np.array(img_resized).astype(np.float32)
-    img_array = preprocess_input(img_array)
-    img_array = np.expand_dims(img_array, axis=0)
+def explain_with_lime(image_pil, model, class_names):
+    try:
+        image_np = np.array(image_pil)
 
-    # LIME instance
-    explainer = lime_image.LimeImageExplainer()
-    explanation = explainer.explain_instance(
-        image=img_array[0],
-        classifier_fn=model.predict,
-        top_labels=1,
-        hide_color=0,
-        num_samples=1000
-    )
+        # Barre de chargement Streamlit
+        with st.spinner("🧠 Génération de l’explication LIME en cours..."):
+            def batch_predict(images):
+                model.eval()
+                transform = transforms.Compose([
+                    transforms.Resize((192, 192)),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406],
+                                         [0.229, 0.224, 0.225])
+                ])
+                batch = torch.stack(
+                    [transform(Image.fromarray(img)).float() for img in images], dim=0)
+                with torch.no_grad():
+                    outputs = model(batch)
+                    probs = torch.nn.functional.softmax(outputs, dim=1)
+                return probs.numpy()
 
-    temp, mask = explanation.get_image_and_mask(
-        explanation.top_labels[0],
-        positive_only=True,
-        num_features=5,
-        hide_rest=False
-    )
+            explainer = lime_image.LimeImageExplainer()
+            explanation = explainer.explain_instance(
+                image_np,
+                batch_predict,
+                top_labels=1,
+                hide_color=0,
+                num_samples=1000
+            )
 
-    return mark_boundaries(temp / 255.0, mask)
+            top_label = explanation.top_labels[0]
+            temp, mask = explanation.get_image_and_mask(
+                top_label,
+                positive_only=True,
+                num_features=10,
+                hide_rest=False
+            )
+
+        return temp, mask
+
+    except Exception as e:
+        st.error(f"❌ Erreur dans LIME : {e}")
+        return None, None

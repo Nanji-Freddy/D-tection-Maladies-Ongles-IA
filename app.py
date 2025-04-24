@@ -1,3 +1,5 @@
+from skimage.segmentation import mark_boundaries
+from explain import explain_with_lime
 import os
 import random
 import numpy as np
@@ -11,11 +13,11 @@ import streamlit as st
 st.set_page_config(page_title="Nail Disease Detection", layout="centered")
 
 
-# --- Session state pour garder l'onglet actif ---
+# --- Onglet actif via session ---
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "📷 Predict"
 
-# --- Sidebar filters ---
+# --- Sidebar: filtres de classes ---
 st.sidebar.header("Filtres")
 example_classes = [
     "Acral_Lentiginous_Melanoma",
@@ -31,7 +33,7 @@ selected_classes = st.sidebar.multiselect(
     default=example_classes
 )
 
-# --- Barre de navigation (onglets persistants) ---
+# --- Navigation ---
 tab_choice = st.radio(
     "Navigation",
     ["📷 Predict", "📊 EDA", "ℹ️ About"],
@@ -48,7 +50,7 @@ st.session_state.active_tab = tab_choice
 def load_model():
     model = timm.create_model('resnet18d', pretrained=False, num_classes=6)
     model.load_state_dict(torch.load('models/model.pth',
-                                     map_location=torch.device('cpu')))
+                          map_location=torch.device('cpu')))
     model.eval()
     return model
 
@@ -71,31 +73,63 @@ def predict(image, model, class_names):
     return class_names[pred_class], probs[pred_class], probs
 
 
-# --- UI Header ---
-st.title("🩺 Nail Disease Detection")
-st.markdown(
-    "Upload or capture an image of a nail and let AI detect the condition.")
-
-# --- Chargement modèle ---
 model = load_model()
+st.title("🩺 Nail Disease Detection")
+st.markdown("Upload an image or use your webcam to detect nail conditions.")
 
-# --- Onglet Prédiction ---
+# --- Onglet 1: Prédiction ---
 if tab_choice == "📷 Predict":
+    st.subheader("📁 Upload d’image")
     uploaded_file = st.file_uploader(
-        "Upload an image", type=["jpg", "jpeg", "png"])
+        "Uploader une image", type=["jpg", "jpeg", "png"])
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert('RGB')
-        st.image(image, caption='Uploaded Image', use_column_width=True)
+        st.image(image, caption='Image uploadée', use_column_width=True)
 
         label, confidence, all_probs = predict(image, model, example_classes)
         st.success(f"**Prediction:** {label} ({confidence*100:.2f}%)")
 
-        st.subheader("Confidence per class")
+        st.subheader("Confiance par classe")
         for name, prob in zip(example_classes, all_probs):
             if name in selected_classes:
                 st.progress(float(prob), text=f"{name}: {prob*100:.2f}%")
 
-# --- Onglet EDA ---
+        # --- LIME ---
+        st.subheader("🧠 Interprétation LIME de la prédiction")
+        temp, mask = explain_with_lime(image, model, example_classes)
+        fig, ax = plt.subplots()
+        ax.imshow(mark_boundaries(temp, mask))
+        ax.set_title(f"Zones importantes pour: {label}")
+        ax.axis("off")
+        st.pyplot(fig)
+
+    st.subheader("📸 Ou capture une photo avec la webcam")
+    image_data = st.camera_input("Prendre une photo")
+
+    if image_data is not None:
+        image = Image.open(image_data).convert('RGB')
+        st.image(image, caption="Image capturée", use_column_width=True)
+
+        if st.button("Prédire à partir de la photo"):
+            label, confidence, all_probs = predict(
+                image, model, example_classes)
+            st.success(f"**Prediction:** {label} ({confidence*100:.2f}%)")
+
+            st.subheader("Confiance par classe")
+            for name, prob in zip(example_classes, all_probs):
+                if name in selected_classes:
+                    st.progress(float(prob), text=f"{name}: {prob*100:.2f}%")
+
+            # --- LIME webcam ---
+            st.subheader("🧠 Interprétation LIME de la prédiction")
+            temp, mask = explain_with_lime(image, model, example_classes)
+            fig, ax = plt.subplots()
+            ax.imshow(mark_boundaries(temp, mask))
+            ax.set_title(f"Zones importantes pour: {label}")
+            ax.axis("off")
+            st.pyplot(fig)
+
+# --- Onglet 2: EDA ---
 elif tab_choice == "📊 EDA":
     st.header("📊 Analyse exploratoire des données (EDA)")
 
@@ -145,7 +179,7 @@ elif tab_choice == "📊 EDA":
     ax2.legend()
     st.pyplot(fig2)
 
-# --- Onglet À propos ---
+# --- Onglet 3: À propos ---
 elif tab_choice == "ℹ️ About":
     st.write("""
     ### À propos
@@ -153,13 +187,12 @@ elif tab_choice == "ℹ️ About":
 
     **Fonctionnalités :**
     - Classification d'images médicales
-    - Visualisation des probabilités
+    - Upload ou photo depuis webcam
+    - Interprétabilité avec LIME
     - Analyse des données d'entraînement
 
     **Technologies :**
-    - Framework : Streamlit
-    - Modèle : ResNet-18
-    - Traitement d'image : PyTorch
+    - Streamlit, PyTorch, TIMM, LIME, PIL, matplotlib, seaborn
 
-    **Développé par Junie Claude Bella**
+    **Développé par NANJI ENGA GEDEON FREDDY , ANTHONY CORMEAUX, IBOBI OSEE GILDAS**
     """)
