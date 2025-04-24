@@ -9,4 +9,5 @@ lime == 0.2.0.1
 streamlit == 1.44.1
 shap == 0.47.2
 opencv-python == 4.11.0.86
+seaborn == seaborn-0.13.2
 ipykernel
