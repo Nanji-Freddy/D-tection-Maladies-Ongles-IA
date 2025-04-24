@@ -62,6 +62,6 @@ Cette application permet :
 1. Clone le repo :
 
 ```bash
-git clone https://github.com/ton-utilisateur/d-tection-maladies-ongles-ia.git
-cd d-tection-maladies-ongles-ia
+git clone https://github.com/Nanji-Freddy/D-tection-Maladies-Ongles-IA.git
+cd D-tection-Maladies-Ongles-IA
 ```
