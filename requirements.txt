@@ -11,4 +11,5 @@ shap == 0.47.2
 opencv-python == 4.11.0.86
 seaborn == 0.13.2
 streamlit-webrtc == 0.62.4
+torch == 2.7.0
 ipykernel
